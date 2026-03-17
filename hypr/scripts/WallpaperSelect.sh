@@ -99,7 +99,6 @@ menu() {
   done
 }
 
-
 modify_startup_config() {
   local selected_file="$1"
   local startup_config="$HOME/.config/hypr/UserConfigs/Startup_Apps.conf"
@@ -139,11 +138,10 @@ apply_image_wallpaper() {
   swww img -o "$focused_monitor" "$image_path" $SWWW_PARAMS
 
   # Run additional scripts (pass the image path to avoid cache race conditions)
-  "$SCRIPTSDIR/WallustSwww.sh" "$image_path"
-  sleep 2
-  "$SCRIPTSDIR/Refresh.sh"
+  # "$SCRIPTSDIR/WallustSwww.sh" "$image_path"
+  # sleep 2
+  # "$SCRIPTSDIR/Refresh.sh"
   sleep 1
-
 }
 
 apply_video_wallpaper() {
@@ -162,28 +160,44 @@ apply_video_wallpaper() {
 
 # Main function
 main() {
-  choice=$(menu | $rofi_command)
-  choice=$(echo "$choice" | xargs)
-  RANDOM_PIC_NAME=$(echo "$RANDOM_PIC_NAME" | xargs)
+  local selected_file=""
 
-  if [[ -z "$choice" ]]; then
-    echo "No choice selected. Exiting."
-    exit 0
-  fi
+  # Проверяем, передан ли первый аргумент ($1)
+  if [[ -n "$1" ]]; then
+    # Проверяем, существует ли переданный файл
+    if [[ -f "$1" ]]; then
+      # Превращаем путь в абсолютный, чтобы не сломать конфиги автозапуска
+      selected_file=$(realpath "$1")
+      echo "Используем переданный файл: $selected_file"
+    else
+      echo "Ошибка: Файл '$1' не найден."
+      exit 1
+    fi
+  else
+    # Если аргумент не передан, запускаем стандартное меню Rofi
+    choice=$(menu | $rofi_command)
+    choice=$(echo "$choice" | xargs)
+    RANDOM_PIC_NAME=$(echo "$RANDOM_PIC_NAME" | xargs)
 
-  # Handle random selection correctly
-  if [[ "$choice" == "$RANDOM_PIC_NAME" ]]; then
-    choice=$(basename "$RANDOM_PIC")
-  fi
+    if [[ -z "$choice" ]]; then
+      echo "No choice selected. Exiting."
+      exit 0
+    fi
 
-  choice_basename=$(basename "$choice" | sed 's/\(.*\)\.[^.]*$/\1/')
+    # Handle random selection correctly
+    if [[ "$choice" == "$RANDOM_PIC_NAME" ]]; then
+      choice=$(basename "$RANDOM_PIC")
+    fi
 
-  # Search for the selected file in the wallpapers directory, including subdirectories
-  selected_file=$(find "$wallDIR" -iname "$choice_basename.*" -print -quit)
+    choice_basename=$(basename "$choice" | sed 's/\(.*\)\.[^.]*$/\1/')
 
-  if [[ -z "$selected_file" ]]; then
-    echo "File not found. Selected choice: $choice"
-    exit 1
+    # Search for the selected file in the wallpapers directory, including subdirectories
+    selected_file=$(find "$wallDIR" -iname "$choice_basename.*" -print -quit)
+
+    if [[ -z "$selected_file" ]]; then
+      echo "File not found. Selected choice: $choice"
+      exit 1
+    fi
   fi
 
   # Modify the Startup_Apps.conf file based on wallpaper type
@@ -202,4 +216,5 @@ if pidof rofi >/dev/null; then
   pkill rofi
 fi
 
-main
+# Вызываем функцию main и передаем ей первый аргумент
+main "$1"
